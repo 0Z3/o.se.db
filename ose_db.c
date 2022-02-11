@@ -122,7 +122,7 @@ static void ose_db_debug(ose_bundle osevm)
     s += ose_readSize(vm_e);
     s += ose_readSize(vm_c);
     s += ose_readSize(vm_d);
-    if(s < osevm_size)
+    if(s < freespace)
     {
         if(s * 2 <= freespace)
         {
@@ -185,7 +185,7 @@ static void ose_db_enter(ose_bundle osevm)
     s += ose_readSize(vm_e);
     s += ose_readSize(vm_c);
     s += ose_readSize(vm_d);
-    if(s < osevm_size)
+    if(s < freespace)
     {
         if(s * 2 <= freespace)
         {
