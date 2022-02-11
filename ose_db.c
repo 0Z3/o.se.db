@@ -106,16 +106,78 @@ static void ose_db_setDump(ose_bundle osevm)
     ose_db_set(osevm, 4);
 }
 
-static void ose_db_enter(ose_bundle osevm)
+static void ose_db_debug(ose_bundle osevm)
 {
-    /* oserepl_debug(osevm); */
     ose_bundle vm_i = OSEVM_INPUT(osevm);
     ose_bundle vm_s = OSEVM_STACK(osevm);
     ose_bundle vm_e = OSEVM_ENV(osevm);
     ose_bundle vm_c = OSEVM_CONTROL(osevm);
     ose_bundle vm_d = OSEVM_DUMP(osevm);
     ose_bundle vm_db;
-    const int32_t osevm_size = ose_readSize(osevm);
+    const int32_t freespace = ose_spaceAvailable(osevm);
+
+    int32_t db_size = 0;
+    int32_t s = ose_readSize(vm_i);
+    s += ose_readSize(vm_s);
+    s += ose_readSize(vm_e);
+    s += ose_readSize(vm_c);
+    s += ose_readSize(vm_d);
+    if(s < osevm_size)
+    {
+        if(s * 2 <= freespace)
+        {
+            db_size = s * 2;
+        }
+        else
+        {
+            db_size = freespace - s;
+        }
+    }
+    else
+    {
+        /* not enough memory for the debugger :( */
+        return;
+    }
+    ose_pushContextMessage(osevm, db_size, "/db");    
+    vm_db = ose_enter(osevm, "/db");
+    
+    ose_copyBundle(vm_d, vm_db);
+    ose_clear(vm_d);
+
+    ose_copyBundle(vm_i, vm_db);
+    ose_clear(vm_i);
+
+    ose_copyBundle(vm_e, vm_db);
+    ose_clear(vm_e);
+
+    ose_drop(vm_c);
+    ose_copyBundle(vm_c, vm_db);
+    ose_clear(vm_c);
+    /* hook for the client to prepare */
+    ose_pushString(vm_c, "/!/db/start");
+    /* ose_swap(vm_c); */
+    /* make sure there's something for the vm to drop */
+    ose_pushString(vm_c, "");
+
+    /* ose_bundleAll(vm_s); */
+    /* ose_pop(vm_s); */
+    /* ose_drop(vm_s); */
+    /* ose_pushMessage(vm_db, "/ex", 3, 1, */
+    /*                 OSETT_INT32, ose_popInt32(vm_s)); */
+    /* ose_moveElem(vm_s, vm_db); */
+    ose_copyBundle(vm_s, vm_db);
+    ose_clear(vm_s);
+}
+
+static void ose_db_enter(ose_bundle osevm)
+{
+    ose_bundle vm_i = OSEVM_INPUT(osevm);
+    ose_bundle vm_s = OSEVM_STACK(osevm);
+    ose_bundle vm_e = OSEVM_ENV(osevm);
+    ose_bundle vm_c = OSEVM_CONTROL(osevm);
+    ose_bundle vm_d = OSEVM_DUMP(osevm);
+    ose_bundle vm_db;
+    const int32_t freespace = ose_spaceAvailable(osevm);
     /* ose_bundle vm_db = OSEVM_DBUTPUT(osevm); */
     int32_t db_size = 0;
     int32_t s = ose_readSize(vm_i);
@@ -125,13 +187,13 @@ static void ose_db_enter(ose_bundle osevm)
     s += ose_readSize(vm_d);
     if(s < osevm_size)
     {
-        if(s * 2 <= osevm_size)
+        if(s * 2 <= freespace)
         {
             db_size = s * 2;
         }
         else
         {
-            db_size = osevm_size - s;
+            db_size = freespace - s;
         }
     }
     else
@@ -139,7 +201,7 @@ static void ose_db_enter(ose_bundle osevm)
         /* not enough memory for the debugger :( */
         return;
     }
-    ose_pushContextMessage(osevm, s * 2, "/db");    
+    ose_pushContextMessage(osevm, db_size, "/db");    
     vm_db = ose_enter(osevm, "/db");
     
     
@@ -169,12 +231,9 @@ static void ose_db_enter(ose_bundle osevm)
     ose_bundleAll(vm_s);
     ose_pop(vm_s);
     ose_drop(vm_s);
+    /* ose_pushMessage(vm_db, "/ex", 3, 1, */
+    /*                 OSETT_INT32, ose_popInt32(vm_s)); */
     ose_moveElem(vm_s, vm_db);
-
-    /* ose_pushBundle(vm_s); */
-    /* ose_swap(vm_s); */
-    /* ose_push(vm_s); */
-    /* ose_pushBundle(vm_s); */
 }
 
 static void ose_db_exit(ose_bundle osevm)
@@ -217,14 +276,16 @@ void ose_main(ose_bundle osevm)
     ose_pushMessageWithAddressLiteral(vm_s, "/db/enter", 1,
                     OSETT_ALIGNEDPTR, ose_db_enter);
     ose_push(vm_s);
+    ose_pushMessageWithAddressLiteral(vm_s, "/db/debug", 1,
+                    OSETT_ALIGNEDPTR, ose_db_debug);
+    ose_push(vm_s);
     ose_pushMessageWithAddressLiteral(vm_s, "/db/exit", 1,
                     OSETT_ALIGNEDPTR, ose_db_exit);
     ose_push(vm_s);
     ose_pushMessageWithAddressLiteral(vm_s, "/db/abort", 1,
                     OSETT_ALIGNEDPTR, ose_db_abort);
-
-    /* get */
 	ose_push(vm_s);
+    /* get */
     ose_pushMessageWithAddressLiteral(vm_s, "/db/get/_i", 1,
                     OSETT_ALIGNEDPTR, ose_db_getInput);
     ose_push(vm_s);
